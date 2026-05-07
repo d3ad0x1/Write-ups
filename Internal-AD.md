@@ -1,6 +1,9 @@
 ---
 title: Internal AD Assessment
-tags: AD,Windows,PrivEsc
+tags:
+  - AD
+  - Windows
+  - PrivEsc
 difficulty: Medium
 ---
 
