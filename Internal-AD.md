@@ -1,3 +1,9 @@
+---
+title: Internal AD Assessment
+tags: AD,Windows,PrivEsc
+difficulty: Medium
+---
+
 # Internal AD Assessment
 
 ## Recon
