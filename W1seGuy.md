@@ -14,9 +14,9 @@ difficulty: Easy
 
 This room demonstrates a classic XOR vulnerability using a known-plaintext attack.
 
-The TCP service generates a random 5-byte XOR key and encrypts a flag before sending it to the client.
+The TCP service generates a random 5-byte XOR key and encrypts data before sending it to the client.
 
-By leveraging known plaintext patterns (`THM{`), we can recover the XOR key and decrypt the message.
+Because XOR is reversible and the plaintext format is partially known (`THM{`), it becomes possible to recover the encryption key and decrypt the ciphertext.
 
 ---
 
@@ -27,18 +27,18 @@ The provided Python source reveals the encryption mechanism:
 ```python
 flag = 'THM{thisisafakeflag}'
 
-for i in range(0,len(flag)):
-    xored += chr(ord(flag[i]) ^ ord(key[i%len(key)]))
+for i in range(0, len(flag)):
+    xored += chr(ord(flag[i]) ^ ord(key[i % len(key)]))
 ```
 
-The service:
+The application workflow:
 
-1. Generates a random 5-character key
-2. XOR encrypts the flag
-3. Sends ciphertext in hex format
-4. Prompts the user for the encryption key
-
-If the correct key is supplied, the real flag is returned.
+1. Generate random 5-character XOR key
+2. XOR encrypt flag
+3. Convert encrypted bytes to hex
+4. Send ciphertext to client
+5. Ask user for encryption key
+6. Return real flag if key is correct
 
 ---
 
@@ -57,26 +57,96 @@ What is the encryption key?
 
 ---
 
-## Recovering the XOR Key
+## Understanding the Vulnerability
+
+XOR encryption works as:
+
+```text
+ciphertext = plaintext XOR key
+```
 
 Because XOR is reversible:
 
 ```text
-ciphertext XOR plaintext = key
+key = ciphertext XOR plaintext
 ```
 
-We know the plaintext starts with:
+The plaintext format is predictable because flags always begin with:
 
 ```text
 THM{
 ```
 
-Using the first bytes of ciphertext, we recover the key.
+This makes the service vulnerable to a known-plaintext attack.
 
-Recovered key:
+---
+
+## Recovering the XOR Key
+
+Take the first bytes of ciphertext and XOR them with `THM{`.
+
+Example:
+
+```python
+cipher = bytes.fromhex(cipher_hex)
+
+known = "THM{"
+
+key = ""
+
+for i in range(len(known)):
+    key += chr(cipher[i] ^ ord(known[i]))
+
+print(key)
+```
+
+Example recovered partial key:
 
 ```text
-G6S57
+G6S5
+```
+
+The service uses a 5-byte repeating key, so the remaining character can be brute-forced.
+
+---
+
+## Brute Forcing the Last Character
+
+```python
+import string
+
+cipher_hex = "137e1e4e4776573f5b43024e2774433302305e5406582106562b7a2a5d6235422a0542354e1c474a"
+
+cipher = bytes.fromhex(cipher_hex)
+
+known = "THM{"
+
+partial_key = ""
+
+for i in range(len(known)):
+    partial_key += chr(cipher[i] ^ ord(known[i]))
+
+charset = string.ascii_letters + string.digits
+
+for ch in charset:
+
+    key = partial_key + ch
+
+    decoded = ""
+
+    for i in range(len(cipher)):
+        decoded += chr(cipher[i] ^ ord(key[i % len(key)]))
+
+    if decoded.startswith("THM{"):
+        print("Possible key:", key)
+        print("Decoded:", decoded)
+```
+
+Example output:
+
+```text
+Possible key: G6S57
+Decoded: THM{p1alntExtAtt4ckcAnr3alLyhUrty0urxOr}
 ```
 
 ---
@@ -90,15 +160,15 @@ Congrats! That is the correct key! Here is flag 2: THM{BrUt3_ForC1nG_XOR_cAn_B3_
 
 ---
 
-## Flag 1
+## Example Flags
+
+### Flag 1
 
 ```text
 THM{p1alntExtAtt4ckcAnr3alLyhUrty0urxOr}
 ```
 
----
-
-## Flag 2
+### Flag 2
 
 ```text
 THM{BrUt3_ForC1nG_XOR_cAn_B3_FuN_nO?}
@@ -108,6 +178,8 @@ THM{BrUt3_ForC1nG_XOR_cAn_B3_FuN_nO?}
 
 ## Notes
 
-- XOR encryption becomes weak when known plaintext is available
-- Repeating XOR keys are vulnerable to plaintext attacks
-- Small XOR keys are trivial to brute-force
+- XOR encryption becomes weak when plaintext is predictable
+- Repeating XOR keys are vulnerable to known-plaintext attacks
+- Small XOR keys can be brute-forced easily
+- The target IP changes every time the machine is started
+- The generated key and second flag are unique per session
