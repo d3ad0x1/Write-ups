@@ -45,7 +45,7 @@ If the correct key is supplied, the real flag is returned.
 ## Connecting to the Service
 
 ```bash
-nc 10.114.168.239 1337
+nc <TARGET_IP> 1337
 ```
 
 Example output:
