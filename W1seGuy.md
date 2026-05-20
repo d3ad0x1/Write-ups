@@ -57,65 +57,77 @@ What is the encryption key?
 
 ---
 
-## Understanding the Vulnerability
+# Exploitation
 
-XOR encryption works as:
+## Step 1 - Capture Ciphertext
 
-```text
-ciphertext = plaintext XOR key
-```
-
-Because XOR is reversible:
+Copy the ciphertext received from the server:
 
 ```text
-key = ciphertext XOR plaintext
+137e1e4e4776573f5b43024e2774433302305e5406582106562b7a2a5d6235422a0542354e1c474a
 ```
 
-The plaintext format is predictable because flags always begin with:
+---
+
+## Step 2 - Recover Partial XOR Key
+
+Because all flags begin with:
 
 ```text
 THM{
 ```
 
-This makes the service vulnerable to a known-plaintext attack.
+we can recover the first 4 bytes of the XOR key.
 
----
-
-## Recovering the XOR Key
-
-Take the first bytes of ciphertext and XOR them with `THM{`.
-
-Example:
+Create a Python script:
 
 ```python
+cipher_hex = input("Ciphertext: ").strip()
+
 cipher = bytes.fromhex(cipher_hex)
 
 known = "THM{"
 
-key = ""
+partial_key = ""
 
 for i in range(len(known)):
-    key += chr(cipher[i] ^ ord(known[i]))
+    partial_key += chr(cipher[i] ^ ord(known[i]))
 
-print(key)
+print("Partial key:", partial_key)
 ```
 
-Example recovered partial key:
+Run it:
+
+```bash
+python3 partial_key.py
+```
+
+Example output:
+
+```text
+Partial key: G6S5
+```
+
+---
+
+## Step 3 - Brute Force Remaining Key Byte
+
+The service uses a 5-byte XOR key.
+
+We already recovered 4 bytes:
 
 ```text
 G6S5
 ```
 
-The service uses a 5-byte repeating key, so the remaining character can be brute-forced.
+Now brute-force the last byte.
 
----
-
-## Brute Forcing the Last Character
+Create another script:
 
 ```python
 import string
 
-cipher_hex = "137e1e4e4776573f5b43024e2774433302305e5406582106562b7a2a5d6235422a0542354e1c474a"
+cipher_hex = input("Ciphertext: ").strip()
 
 cipher = bytes.fromhex(cipher_hex)
 
@@ -138,37 +150,51 @@ for ch in charset:
         decoded += chr(cipher[i] ^ ord(key[i % len(key)]))
 
     if decoded.startswith("THM{"):
+
         print("Possible key:", key)
-        print("Decoded:", decoded)
+        print("Decoded flag:", decoded)
+```
+
+Run:
+
+```bash
+python3 bruteforce.py
 ```
 
 Example output:
 
 ```text
 Possible key: G6S57
-Decoded: THM{p1alntExtAtt4ckcAnr3alLyhUrty0urxOr}
+Decoded flag: THM{p1alntExtAtt4ckcAnr3alLyhUrty0urxOr}
 ```
 
 ---
 
-## Sending the Key
+## Step 4 - Send the Key
+
+Return to the TCP connection and enter the recovered key:
 
 ```text
 What is the encryption key? G6S57
+```
+
+Server response:
+
+```text
 Congrats! That is the correct key! Here is flag 2: THM{BrUt3_ForC1nG_XOR_cAn_B3_FuN_nO?}
 ```
 
 ---
 
-## Example Flags
+# Flags
 
-### Flag 1
+## Flag 1
 
 ```text
 THM{p1alntExtAtt4ckcAnr3alLyhUrty0urxOr}
 ```
 
-### Flag 2
+## Flag 2
 
 ```text
 THM{BrUt3_ForC1nG_XOR_cAn_B3_FuN_nO?}
@@ -176,10 +202,11 @@ THM{BrUt3_ForC1nG_XOR_cAn_B3_FuN_nO?}
 
 ---
 
-## Notes
+# Notes
 
 - XOR encryption becomes weak when plaintext is predictable
 - Repeating XOR keys are vulnerable to known-plaintext attacks
 - Small XOR keys can be brute-forced easily
 - The target IP changes every time the machine is started
-- The generated key and second flag are unique per session
+- Generated keys differ per connection
+- The second flag changes depending on the active machine/session
